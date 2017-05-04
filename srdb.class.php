@@ -125,12 +125,12 @@ class icit_srdb {
 	public $exclude_tables = array();
 
 	/**
-	 * @var string Search term
+	 * @var string|array Search term
 	 */
 	public $search = false;
 
 	/**
-	 * @var string Replacement
+	 * @var string|array Replacement
 	 */
 	public $replace = false;
 
@@ -236,6 +236,11 @@ class icit_srdb {
 	 * @var int How many rows to select at a time when replacing
 	 */
 	public $page_size = 50000;
+
+	/**
+	 * @var string unique string using in multiple replace for simultaneous replace
+	 */
+	public $sim_replace_placeholder = '';
 
 
 	/**
@@ -347,21 +352,13 @@ class icit_srdb {
 			elseif ( $this->alter_collation ) {
 				$report = $this->update_collation( $this->alter_collation, $this->tables );
 			}
-
-            /*elseif (is_array($this->search)){
-                $report = array();
-                for ($i = 0; $i < count($this->search); $i++){
-                    $report[$i] = $this->replacer($this->search[$i], $this->replace[$i], $this->tables, $this->exclude_tables);
-                }
-
-                //$report = array_merge($report, $new_report);
-//                  $report = array_merge($report, $this->replacer($this->search[$i],$this->replace[$i],$this->tables, $this->exclude_tables));
-//                    $new_report = $this->replacer($this->search[$i],$this->replace[$i],$this->tables, $this->exclude_tables);
-//                    $report['table_reports'] = array_merge($report['table_reports'], $new_report['table_reports']);
-//                }
-
-            }*/
 			else {
+			  if(is_array($this->search)){
+			    $init_res = $this->init_for_multi_search_replace();
+			    if($init_res === false){
+			      return; //exit if fail to init
+          }
+        }
 				$report = $this->replacer( $this->search, $this->replace, $this->tables, $this->exclude_tables );
 			}
 
@@ -843,7 +840,7 @@ class icit_srdb {
       $search = (string)$search;
     }
 		// check we have a search string, bail if not
-		if ( '' === $search ) {
+		if ( '' === $search  ) {
 			$this->add_error( 'Search string is empty', 'search' );
 			return false;
 		}
@@ -1218,6 +1215,8 @@ class icit_srdb {
 	public function str_replace( $search, $replace, $string, &$count = 0 ) {
 		if ( $this->get( 'regex' ) ) {
 			return preg_replace( $search, $replace, $string, -1, $count );
+		} elseif( is_array($search) &&  is_array($replace) ) {
+		  return strtr($string, array_combine($search, $replace)); //replace simultaneously
 		} elseif( function_exists( 'mb_split' ) ) {
 			return self::mb_str_replace( $search, $replace, $string, $count );
 		} else {
@@ -1250,5 +1249,71 @@ class icit_srdb {
 
 		return $string;
 	}
+
+	/**
+   * Initialize $search & $replace for multi (bulk) replace
+   * - this method changes $this->search & $this->replace
+   * - insert placeholder to every $replace to avoid duplicate replace.
+   *     ex) preg_replace(["/A/","/B/","/C/"], ["B","C","D"], "ABC") #result expected "BCD" but return "DDD"
+   * - wrap delimiter string '{' '}' and insert placeholder string to $search array
+   *
+   * @author Daisuke Kawabata <k.daisuke@teamstove.co.jp>
+   *
+   * @return bool
+   */
+	public function init_for_multi_search_replace(){
+    //init placeholder string for multi(bulk) replace that is not contain any $search or $replace
+    if($this->get('regex')){
+      //create sim replace placeholder
+      if($this->sim_replace_placeholder == ''){
+        $tmp_search = [];
+        foreach ($this->search as $value) {
+          $tmp_search[] = '{'.$value.'}';
+        }
+        unset($value);
+        for ($i=0; $i < 100; $i++){
+          $randString = substr(base_convert(md5(uniqid()), 16, 36), 0, 10); //gen rand string
+          //check if $randString does not match in $search and $replace
+          if(preg_replace($tmp_search,'$randStringIsNotAppliedWhenReplaceThisString', $randString) === $randString){
+            $this->sim_replace_placeholder = $randString;
+            break;
+          }
+        }
+        if($this->sim_replace_placeholder == ''){
+          $this->add_error('Failed to generate sim_replace_placeholder Please try again or set placeholder string manually.');
+          return false;
+        }
+      }
+      if(is_string($this->replace)) {
+        $this->replace = [$this->replace];
+      }
+      if( count($this->search) !== count($this->replace) ){
+        $this->add_error('Tried to multi replace but search-replace count did not match - $search:'.count($this->search).' $replace:'.count($this->replace));
+        return false;
+      }
+      // insert placeholder string like prefix to every $replace to avoid duplicate replace.
+      // ex. preg_replace(["/A/","/B/","/C/"], ["B","C","D"], "ABC") #expect result "BCD" but return "DDD"
+      foreach ($this->replace as &$value) {
+        $value = $this->sim_replace_placeholder.$value;
+      }
+      unset($value);
+      //add delimiter and placeholder (?<!pattern)
+      foreach ($this->search as &$value) {
+        $value = '{(?<!'.$this->sim_replace_placeholder.')'.$value.'}';
+      }
+      unset($value);
+
+      //add last of $search & $replace for remove placeholder after replaced
+      $this->search[] = '{'.$this->sim_replace_placeholder.'}';
+      $this->replace[] = '';
+    } else {
+      if(is_array($this->replace) && count($this->search) !== count($this->replace)){
+        $this->add_error('Tried to multi replace but search-replace count did not match - $search:'.count($this->search).' $replace:'.count($this->replace));
+        return false;
+      }
+    }
+
+    return true;
+  }
 
 }
