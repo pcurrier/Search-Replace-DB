@@ -21,6 +21,7 @@ $opts = array(
     'c:' => 'char:',
     's:' => 'search:',
     'r:' => 'replace:',
+    'o:' => 'multi-search-replace-object:',
     't:' => 'tables:',
     'w:' => 'exclude-tables:',
     'i:' => 'include-cols:',
@@ -105,9 +106,9 @@ ARGS
   -r, --replace
     None empty string to replace search with or
     `preg_replace()` style replacement.
-  -o, --search-replace-object
+  -o, --multi-search-replace-object
     Pass json object of search as key, replace as value
-    if set this option, override --search and --replace 
+    this option will override --search and --replace 
   -t, --tables
     If set only runs the script on the specified table, comma
     separate for multiple values.
@@ -183,13 +184,8 @@ foreach ($options as $key => $value) {
     if (($is_short = array_search($key, $short_opts_normal)) !== false)
         $key = $long_opts_normal[$is_short];
 
-    if (in_array($key, ['search', 'replace']) && is_array($jsonVal = json_decode($value, true))) {
-        $args[$key] = $jsonVal;
-        continue;
-    }
-
-    //set from param `--search-replace-object` for bulk replace
-    if (in_array($key, ['search-replace-object']) && is_array($jsonVal = json_decode($value, true))) {
+    //set from param `--multi-search-replace-object` for bulk replace
+    if (in_array($key, ['multi-search-replace-object']) && is_array($jsonVal = json_decode($value, true))) {
         $args['search'] = array_keys($jsonVal);
         $args['replace'] = array_values($jsonVal);
         continue;
