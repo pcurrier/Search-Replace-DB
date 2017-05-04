@@ -1305,7 +1305,7 @@ class icit_srdb {
       unset($value);
       //add delimiter and placeholder (?<!pattern)
       foreach ($this->search as &$value) {
-        $value = '{(?<!'.$this->sim_replace_placeholder.')'.$value.'}';
+        $value = '{(?<!'.$this->sim_replace_placeholder.')'.$value.'}'.$this->regex_option;
       }
       unset($value);
 
