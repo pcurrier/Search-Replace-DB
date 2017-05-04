@@ -270,7 +270,7 @@ class icit_srdb {
 			'search' 			=> '',
 			'replace' 			=> '',
 			'tables'			=> array(),
-            'exclude_tables'    => array(),
+      'exclude_tables'    => array(),
 			'exclude_cols' 		=> array(),
 			'include_cols' 		=> array(),
 			'dry_run' 			=> true,
@@ -348,7 +348,7 @@ class icit_srdb {
 				$report = $this->update_collation( $this->alter_collation, $this->tables );
 			}
 
-            elseif (is_array($this->search)){
+            /*elseif (is_array($this->search)){
                 $report = array();
                 for ($i = 0; $i < count($this->search); $i++){
                     $report[$i] = $this->replacer($this->search[$i], $this->replace[$i], $this->tables, $this->exclude_tables);
@@ -360,7 +360,7 @@ class icit_srdb {
 //                    $report['table_reports'] = array_merge($report['table_reports'], $new_report['table_reports']);
 //                }
 
-            }
+            }*/
 			else {
 				$report = $this->replacer( $this->search, $this->replace, $this->tables, $this->exclude_tables );
 			}
@@ -839,7 +839,9 @@ class icit_srdb {
 	 * @return array    Collection of information gathered during the run.
 	 */
 	public function replacer( $search = '', $replace = '', $tables = array( ), $exclude_tables = array() ) {
-		$search = (string)$search;
+	  if(!is_array($search)){
+      $search = (string)$search;
+    }
 		// check we have a search string, bail if not
 		if ( '' === $search ) {
 			$this->add_error( 'Search string is empty', 'search' );
