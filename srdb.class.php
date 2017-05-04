@@ -140,6 +140,11 @@ class icit_srdb {
 	public $regex = false;
 
 	/**
+	 * @var string regex option ex) 'ix'
+	 */
+	public $regex_option = '';
+
+	/**
 	 * @var bool Leave guid column alone
 	 */
 	public $guid = false;
@@ -280,6 +285,7 @@ class icit_srdb {
 			'include_cols' 		=> array(),
 			'dry_run' 			=> true,
 			'regex' 			=> false,
+			'regex_option' 			=> '',
 			'pagesize' 			=> 50000,
 			'alter_engine' 		=> false,
 			'alter_collation' 	=> false,
@@ -1268,7 +1274,7 @@ class icit_srdb {
       if($this->sim_replace_placeholder == ''){
         $tmp_search = [];
         foreach ($this->search as $value) {
-          $tmp_search[] = '{'.$value.'}';
+          $tmp_search[] = '{'.$value.'}'.$this->regex_option;
         }
         unset($value);
         for ($i=0; $i < 100; $i++){

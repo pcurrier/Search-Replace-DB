@@ -32,6 +32,7 @@ $opts = array(
     'e:' => 'alter-engine:',
     'a:' => 'alter-collation:',
     'v:' => 'verbose:',
+    'regex-option:',
     'port:',
     'help'
 );
@@ -121,6 +122,9 @@ ARGS
   -g, --regex [no value]
     Treats value for -s or --search as a regular expression and
     -r or --replace as a regular expression replacement.
+  --regex-option
+    Set option for regex. ex) ix
+    http://php.net/manual/en/reference.pcre.pattern.modifiers.php
   -l, --pagesize
     How rows to fetch at a time from a table.
   -z, --dry-run [no value]
