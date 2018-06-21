@@ -31,6 +31,7 @@ $opts = array(
     'z' => 'dry-run',
     'e:' => 'alter-engine:',
     'a:' => 'alter-collation:',
+    'q' => 'quiet',
     'v:' => 'verbose:',
     'regex-option:',
     'port:',
@@ -140,6 +141,8 @@ ARGS
     are ignored. They will not be run simultaneously.
   -v, --verbose [true|false]
     Defaults to true, can be set to false to run script silently.
+  -q, --quiet [no value]
+    Only show results for tables that actually changed.
   --help
     Displays this help message ;)
 ";
@@ -178,6 +181,7 @@ if ($missing_arg) {
 // new args array
 $args = array(
     'verbose' => true,
+    'quiet' => false,
     'dry_run' => false
 );
 
@@ -236,8 +240,9 @@ class icit_srdb_cli extends icit_srdb
                 if (is_array($replace)) {
                     $replace = implode(' or ', $replace);
                 }
-                $output .= "{$table}: replacing {$search} with {$replace}";
-
+                if (!$this->quiet) {
+                    $output .= "{$table}: replacing {$search} with {$replace}";
+                }
                 break;
             case 'search_replace_table_end':
                 list($table, $report) = $args;
@@ -245,7 +250,9 @@ class icit_srdb_cli extends icit_srdb
                 if ($time < 0){
                     $time = $time * -1;
                 }
-                $output .= "{$table}: {$report['rows']} rows, {$report['change']} changes found, {$report['updates']} updates made in {$time} seconds";
+                if (!$this->quiet) {
+                    $output .= "{$table}: {$report['rows']} rows, {$report['change']} changes found, {$report['updates']} updates made in {$time} seconds";
+                }
                 break;
             case 'search_replace_end':
                 list($search, $replace, $report) = $args;
@@ -276,7 +283,7 @@ It took {$time} seconds";
                 break;
         }
 
-        if ($this->verbose)
+        if ($output && $this->verbose)
             echo $output . "\n";
 
     }
