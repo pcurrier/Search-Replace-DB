@@ -250,7 +250,7 @@ class icit_srdb_cli extends icit_srdb
                 if ($time < 0){
                     $time = $time * -1;
                 }
-                if (!$this->quiet) {
+                if ($report['change'] > 0 or !$this->quiet) {
                     $output .= "{$table}: {$report['rows']} rows, {$report['change']} changes found, {$report['updates']} updates made in {$time} seconds";
                 }
                 break;
