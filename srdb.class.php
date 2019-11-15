@@ -767,8 +767,16 @@ class icit_srdb {
 		// some unserialised data cannot be re-serialised eg. SimpleXMLElements
 		try {
 
-			if ( is_string( $data ) && ( $unserialized = @unserialize( $data ) ) !== false ) {
-				$data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
+			if ( is_string( $data ) ) {
+				$unserialized = @unserialize($data);
+				if ($unserialized instanceof __PHP_Incomplete_Class) {
+					$unserialized = false;
+				}
+				if ( $unserialized !== false ) {
+					$data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
+				} else {
+					$data = $this->str_replace( $from, $to, $data );
+				}
 			}
 
 			elseif ( is_array( $data ) ) {
