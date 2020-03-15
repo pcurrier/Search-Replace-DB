@@ -750,6 +750,71 @@ class icit_srdb {
 		}
 	}
 
+	/**
+	 * Checks if a string is PHP serialized data (from wordpress source)
+	 *
+	 * @param string $data   Value to check to see if was serialized
+	 * @param array $strict  Whether to be strict about the end of the string
+	 *
+	 * @return bool          False if not serialized and true if it was
+	 */
+	public function is_serialized( $data, $strict = true ) {
+		// if it isn't a string, it isn't serialized.
+		if ( ! is_string( $data ) ) {
+			return false;
+		}
+		$data = trim( $data );
+		if ( 'N;' == $data ) {
+			return true;
+		}
+		if ( strlen( $data ) < 4 ) {
+			return false;
+		}
+		if ( ':' !== $data[1] ) {
+			return false;
+		}
+		if ( $strict ) {
+			$lastc = substr( $data, -1 );
+			if ( ';' !== $lastc && '}' !== $lastc ) {
+				return false;
+			}
+		} else {
+			$semicolon = strpos( $data, ';' );
+			$brace     = strpos( $data, '}' );
+			// Either ; or } must exist.
+			if ( false === $semicolon && false === $brace ) {
+				return false;
+			}
+			// But neither must be in the first X characters.
+			if ( false !== $semicolon && $semicolon < 3 ) {
+				return false;
+			}
+			if ( false !== $brace && $brace < 4 ) {
+				return false;
+			}
+		}
+		$token = $data[0];
+		switch ( $token ) {
+			case 's':
+				if ( $strict ) {
+					if ( '"' !== substr( $data, -2, 1 ) ) {
+						return false;
+					}
+				} elseif ( false === strpos( $data, '"' ) ) {
+					return false;
+				}
+				// or else fall through
+			case 'a':
+			case 'O':
+				return (bool) preg_match( "/^{$token}:[0-9]+:/s", $data );
+			case 'b':
+			case 'i':
+			case 'd':
+				$end = $strict ? '$' : '';
+				return (bool) preg_match( "/^{$token}:[0-9.E+-]+;$end/", $data );
+		}
+		return false;
+	}
 
 	/**
 	 * Take a serialised array and unserialise it replacing elements as needed and
@@ -762,18 +827,25 @@ class icit_srdb {
 	 *
 	 * @return array	The original array with all elements replaced as needed.
 	 */
-	public function recursive_unserialize_replace( $from = '', $to = '', $data = '', $serialised = false ) {
+	public function recursive_unserialize_replace( $table, $column, $page, $r, $from = '', $to = '', $data = '', $serialised = false ) {
 
 		// some unserialised data cannot be re-serialised eg. SimpleXMLElements
 		try {
-
 			if ( is_string( $data ) ) {
-				$unserialized = @unserialize($data);
+				# Want to see warnings, but only if it looks like serialized data
+				if ($this->is_serialized($data)) {
+					$unserialized = unserialize($data);
+					if ($unserialized === FALSE) {
+						echo "(table: $table, column: $column, page: $page, row: $r)\n";
+					}
+				} else {
+					$unserialized = @unserialize($data);
+				}
 				if ($unserialized instanceof __PHP_Incomplete_Class) {
 					$unserialized = false;
 				}
 				if ( $unserialized !== false ) {
-					$data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
+					$data = $this->recursive_unserialize_replace( $table, $column, $page, $r, $from, $to, $unserialized, true );
 				} else {
 					$data = $this->str_replace( $from, $to, $data );
 				}
@@ -782,7 +854,7 @@ class icit_srdb {
 			elseif ( is_array( $data ) ) {
 				$_tmp = array( );
 				foreach ( $data as $key => $value ) {
-					$_tmp[ $key ] = $this->recursive_unserialize_replace( $from, $to, $value, false );
+					$_tmp[ $key ] = $this->recursive_unserialize_replace( $table, $column, $page, $r, $from, $to, $value, false );
 				}
 
 				$data = $_tmp;
@@ -795,7 +867,7 @@ class icit_srdb {
 				$_tmp = $data; // new $data_class( );
 				$props = get_object_vars( $data );
 				foreach ( $props as $key => $value ) {
-					$_tmp->$key = $this->recursive_unserialize_replace( $from, $to, $value, false );
+					$_tmp->$key = $this->recursive_unserialize_replace( $table, $column, $page, $r, $from, $to, $value, false );
 				}
 
 				$data = $_tmp;
@@ -950,7 +1022,9 @@ class icit_srdb {
 					if ( ! $data )
 						$this->add_error( $this->db_error( ), 'results' );
 
+					$r = 0;
 					while ( $row = $this->db_fetch( $data ) ) {
+						$r++;
 
 						$report[ 'rows' ]++; // Increment the row counter
 						$new_table_report[ 'rows' ]++;
@@ -977,7 +1051,7 @@ class icit_srdb {
 								continue;
 
 							// Run a search replace on the data that'll respect the serialisation.
-							$edited_data = $this->recursive_unserialize_replace( $search, $replace, $data_to_fix );
+							$edited_data = $this->recursive_unserialize_replace( $table, $column, $page, $r, $search, $replace, $data_to_fix );
 
 							// Something was changed
 							if ( $edited_data != $data_to_fix ) {
