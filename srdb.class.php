@@ -842,9 +842,8 @@ class icit_srdb {
 					$unserialized = @unserialize($data);
 				}
 				if ($unserialized instanceof __PHP_Incomplete_Class) {
-					$unserialized = false;
-				}
-				if ( $unserialized !== false ) {
+					$z = 0; $data = $this->str_replace( $from, $to, $data, $z, true);
+				} elseif ( $unserialized !== false ) {
 					$data = $this->recursive_unserialize_replace( $table, $column, $page, $r, $from, $to, $unserialized, true );
 				} else {
 					$data = $this->str_replace( $from, $to, $data );
@@ -1301,11 +1300,38 @@ class icit_srdb {
 	 *
 	 * @return string
 	 */
-	public function str_replace( $search, $replace, $string, &$count = 0 ) {
+	public function str_replace( $search, $replace, $string, &$count = 0, $updateLengths = false ) {
 		if ( $this->get( 'regex' ) ) {
 			return preg_replace( $search, $replace, $string, -1, $count );
-		} elseif( is_array($search) &&  is_array($replace) ) {
-		  return strtr($string, array_combine($search, $replace)); //replace simultaneously
+		} elseif( is_array($search) && is_array($replace) ) {
+			if ($updateLengths && sizeof($search) == sizeof($replace)) {
+				$offset = 0;
+				for ($i = 0; $i < sizeof($search); $i++) {
+					$s = $search[$i];
+					$slen = strlen($s);
+					$r = $replace[$i];
+					$rlen = strlen($r);
+					$pos = strpos($string, $s, $offset);
+					while ($pos !== false) {
+						$prior = substr($string, 0, $pos);
+						if (preg_match('/\bs:(\d+):"([^"]*?)$/', $prior, $matches)) {
+							$newlen = $matches[1] + ($rlen - $slen);
+							$lenDiff = ((string)$newlen) - ((string)$matches[1]);
+							$remainder = $matches[2];
+							$newStr = "s:$newlen:\"$remainder";
+							$newPrior = preg_replace('/\bs:(\d+):"([^"]*?)$/', $newStr, $prior);
+							$string = substr_replace($string, $newPrior . $r, 0, strlen($prior . $s));
+						} else {
+							$string = substr_replace($string, $r, $pos, $slen);
+						}
+						$offset = $pos + 1;
+						$pos = strpos($string, $s, $offset);
+					}
+				}
+				return $string;
+			} else {
+				return strtr($string, array_combine($search, $replace)); //replace simultaneously
+			}
 		} elseif( function_exists( 'mb_split' ) ) {
 			return self::mb_str_replace( $search, $replace, $string, $count );
 		} else {
