@@ -836,7 +836,7 @@ class icit_srdb {
 				if ($this->is_serialized($data)) {
 					$unserialized = unserialize($data);
 					if ($unserialized === FALSE) {
-						echo "(table: $table, column: $column, page: $page, row: $r)\n";
+						echo "(table: $table, column: $column, page: $page, row: $r, data: $data)\n";
 					}
 				} else {
 					$unserialized = @unserialize($data);
