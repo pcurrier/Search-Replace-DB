@@ -11,6 +11,10 @@
 date_default_timezone_set('Europe/London');
 
 // include the srdb class
+$srdb_autoloader = getenv('SRDB_AUTOLOADER');
+if ($srdb_autoloader) {
+  require_once($srdb_autoloader);
+}
 require_once(realpath(dirname(__FILE__)) . '/srdb.class.php');
 
 $opts = array(
